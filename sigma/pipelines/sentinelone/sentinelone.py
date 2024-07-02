@@ -16,15 +16,26 @@ class InvalidFieldTransformation(DetectionItemFailureTransformation):
         self.message = f"Invalid SigmaDetectionItem field name encountered: {field_name}. " + self.message
         raise SigmaTransformationError(self.message)
 
-def sentinelonepq_pipeline() -> ProcessingPipeline:
+
+def _flatten(items, seqtypes=(list, tuple)):
+    """Private function to flatten lists for Field mapping errors"""
+    try:
+        for i, x in enumerate(items):
+            while isinstance(items[i], seqtypes):
+                items[i:i+1] = items[i]
+    except IndexError:
+        pass
+    return items
+
+def sentinelone_pipeline() -> ProcessingPipeline:
 
     general_supported_fields = [
-        'event.category',
-        'event.type'
+        'ObjectType',
+        'EventType'
     ]
 
-    translation_dict = {
-        'process_creation':{
+    translation_dict = { 
+        'process_creation':{                
             "ProcessId":"tgt.process.pid",
             "Image":"tgt.process.image.path",
             "Description":"tgt.process.displayName", #Not sure whether this should be Description or Product???
@@ -70,8 +81,6 @@ def sentinelonepq_pipeline() -> ProcessingPipeline:
             "ProcessId":"src.process.pid",
             "Product": "src.process.displayName",
             "Signed":"tgt.file.isSigned"
-    
-
         },
         'pipe_creation':{
             "PipeName":"namedPipe.name",
@@ -82,8 +91,6 @@ def sentinelonepq_pipeline() -> ProcessingPipeline:
             "ProcessId":"src.process.pid",
             "ProcessGuid":"src.process.uid",
             "User":"src.process.user"
-
-
         },
         'registry':{
             "Image": "src.process.image.path",
@@ -123,18 +130,14 @@ def sentinelonepq_pipeline() -> ProcessingPipeline:
             "dst_port":"dst.port.number",
             "src_port":"src.port.number"
         }
-        ##'security':{
-            #"EventID": "EventID",
-            #"Provider_Name":"ProviderName",           
-        ##}
     }
 
     os_filter = [
         # Add EndpointOS = Linux
         ProcessingItem(
-            identifier="s1_pq_linux_product",
+            identifier="s1_linux_product",
             transformation=AddConditionTransformation({
-                "endpoint.os": "linux"
+                "EndpointOS": "linux"
             }),
             rule_conditions=[
                 LogsourceCondition(product="linux")
@@ -142,9 +145,9 @@ def sentinelonepq_pipeline() -> ProcessingPipeline:
         ),
         # Add EndpointOS = Windows
         ProcessingItem(
-            identifier="s1_pq_windows_product",
+            identifier="s1_windows_product",
             transformation=AddConditionTransformation({
-                "endpoint.os": "windows"
+                "EndpointOS": "windows"
             }),
             rule_conditions=[
                 LogsourceCondition(product="windows")
@@ -152,9 +155,9 @@ def sentinelonepq_pipeline() -> ProcessingPipeline:
         ),
         # Add EndpointOS = OSX
         ProcessingItem(
-            identifier="s1_pq_osx_product",
+            identifier="s1_osx_product",
             transformation=AddConditionTransformation({
-                "endpoint.os":"osx"
+                "EndpointOS":"osx"
             }),
             rule_conditions=[
                 LogsourceCondition(product="macos")
@@ -165,9 +168,9 @@ def sentinelonepq_pipeline() -> ProcessingPipeline:
     object_event_type_filter = [
         # Add EventType = Process Creation
         ProcessingItem(
-            identifier="s1_pq_process_creation_eventtype",
+            identifier="s1_process_creation_eventtype",
             transformation=AddConditionTransformation({
-                "event.type": "Process Creation"
+                "EventType": "Process Creation"
             }),
             rule_conditions=[
                 LogsourceCondition(category="process_creation")
@@ -175,9 +178,9 @@ def sentinelonepq_pipeline() -> ProcessingPipeline:
         ),
         # Add ObjectType = "File"
         ProcessingItem(
-            identifier="s1_pq_file_event_objecttype",
+            identifier="s1_file_event_objecttype",
             transformation=AddConditionTransformation({
-                "event.category": "file"
+                "ObjectType": "File"
             }),
             rule_conditions=[
                 LogsourceCondition(category="file_event")
@@ -185,9 +188,9 @@ def sentinelonepq_pipeline() -> ProcessingPipeline:
         ),
         # Add EventType = "File Modification"
         ProcessingItem(
-            identifier="s1_pq_file_change_eventtype",
+            identifier="s1_file_change_eventtype",
             transformation=AddConditionTransformation({
-                "event.type": "File Modification"
+                "EventType": "File Modification"
             }),
             rule_conditions=[
                 LogsourceCondition(category="file_change")
@@ -195,9 +198,9 @@ def sentinelonepq_pipeline() -> ProcessingPipeline:
         ),
         # Add EventType = "File Rename"
         ProcessingItem(
-            identifier="s1_pq_file_rename_eventtype",
+            identifier="s1_file_rename_eventtype",
             transformation=AddConditionTransformation({
-                "event.type": "File Rename"
+                "EventType": "File Rename"
             }),
             rule_conditions=[
                 LogsourceCondition(category="file_rename")
@@ -205,9 +208,9 @@ def sentinelonepq_pipeline() -> ProcessingPipeline:
         ),
         # Add EventType = "File Delete"
         ProcessingItem(
-            identifier="s1_pq_file_delete_eventtype",
+            identifier="s1_file_delete_eventtype",
             transformation=AddConditionTransformation({
-                "event.type": "File Delete"
+                "EventType": "File Delete"
             }),
             rule_conditions=[
                 LogsourceCondition(category="file_delete")
@@ -215,9 +218,9 @@ def sentinelonepq_pipeline() -> ProcessingPipeline:
         ),
         # Add EventType = "Module Load"
         ProcessingItem(
-            identifier="s1_pq_image_load_eventtype",
+            identifier="s1_image_load_eventtype",
             transformation=AddConditionTransformation({
-                "event.type": "ModuleLoad"
+                "EventType": "ModuleLoad"
             }),
             rule_conditions=[
                 LogsourceCondition(category="image_load")
@@ -225,9 +228,9 @@ def sentinelonepq_pipeline() -> ProcessingPipeline:
         ),
         # Add EventType for Pipe Creation
         ProcessingItem(
-            identifier="s1_pq_pipe_creation_eventtype",
+            identifier="s1_pipe_creation_eventtype",
             transformation=AddConditionTransformation({
-                "event.type": "Named Pipe Creation"
+                "EventType": "Named Pipe Creation"
             }),
             rule_conditions=[
                 LogsourceCondition(category="pipe_creation")
@@ -235,9 +238,9 @@ def sentinelonepq_pipeline() -> ProcessingPipeline:
         ),
         # Add ObjectType for Registry Stuff
         ProcessingItem(
-            identifier="s1_pq_registry_eventtype",
+            identifier="s1_registry_eventtype",
             transformation=AddConditionTransformation({
-                "event.category": "Registry"
+                "ObjectType": "Registry"
             }),
             rule_condition_linking=any,
             rule_conditions=[
@@ -249,9 +252,9 @@ def sentinelonepq_pipeline() -> ProcessingPipeline:
         ),
         # Add ObjectType for DNS Stuff
         ProcessingItem(
-            identifier="s1_pq_dns_objecttype",
+            identifier="s1_dns_objecttype",
             transformation=AddConditionTransformation({
-                "event.category":"DNS"
+                "ObjectType":"DNS"
             }),
             rule_condition_linking=any,
             rule_conditions=[
@@ -261,9 +264,9 @@ def sentinelonepq_pipeline() -> ProcessingPipeline:
         ),
         # Add ObjectType for Network Stuff
         ProcessingItem(
-            identifier="s1_pq_network_objecttype",
+            identifier="s1_network_objecttype",
             transformation=AddConditionTransformation({
-                "event.category": ["DNS","Url","IP"]
+                "ObjectType": ["DNS","Url","IP"]
             }),
             rule_conditions=[
                 LogsourceCondition(category="network_connection")
@@ -274,7 +277,7 @@ def sentinelonepq_pipeline() -> ProcessingPipeline:
     field_mappings = [
         # Process Creation
         ProcessingItem(
-            identifier="s1_pq_process_creation_fieldmapping",
+            identifier="s1_process_creation_fieldmapping",
             transformation=FieldMappingTransformation(translation_dict['process_creation']),
             rule_conditions=[
                 LogsourceCondition(category="process_creation")
@@ -282,7 +285,7 @@ def sentinelonepq_pipeline() -> ProcessingPipeline:
         ),
         # File Stuff
         ProcessingItem(
-            identifier="s1_pq_file_change_fieldmapping",
+            identifier="s1_file_change_fieldmapping",
             transformation=FieldMappingTransformation(translation_dict['file']),
             rule_condition_linking=any,
             rule_conditions=[
@@ -294,7 +297,7 @@ def sentinelonepq_pipeline() -> ProcessingPipeline:
         ),
         # Module Load Stuff
         ProcessingItem(
-            identifier="s1_pq_image_load_fieldmapping",
+            identifier="s1_image_load_fieldmapping",
             transformation=FieldMappingTransformation(translation_dict['image_load']),
             rule_conditions=[
                 LogsourceCondition(category="image_load")
@@ -302,7 +305,7 @@ def sentinelonepq_pipeline() -> ProcessingPipeline:
         ),
         # Pipe Creation Stuff
         ProcessingItem(
-            identifier="s1_pq_pipe_creation_fieldmapping",
+            identifier="s1_pipe_creation_fieldmapping",
             transformation=FieldMappingTransformation(translation_dict['pipe_creation']),
             rule_conditions=[
                 LogsourceCondition(category="pipe_creation")
@@ -310,7 +313,7 @@ def sentinelonepq_pipeline() -> ProcessingPipeline:
         ),
         # Registry Stuff
         ProcessingItem(
-            identifier="s1_pq_registry_fieldmapping",
+            identifier="s1_registry_fieldmapping",
             transformation=FieldMappingTransformation(translation_dict['registry']),
             rule_condition_linking=any,
             rule_conditions=[
@@ -322,7 +325,7 @@ def sentinelonepq_pipeline() -> ProcessingPipeline:
         ),
         # DNS Stuff
         ProcessingItem(
-            identifier="s1_pq_dns_fieldmapping",
+            identifier="s1_dns_fieldmapping",
             transformation=FieldMappingTransformation(translation_dict['dns']),
             rule_condition_linking=any,
             rule_conditions=[
@@ -332,7 +335,7 @@ def sentinelonepq_pipeline() -> ProcessingPipeline:
         ),
         # Network Stuff
         ProcessingItem(
-            identifier="s1_pq_network_fieldmapping",
+            identifier="s1_network_fieldmapping",
             transformation=FieldMappingTransformation(translation_dict['network']),
             rule_condition_linking=any,
             rule_conditions=[
@@ -345,7 +348,7 @@ def sentinelonepq_pipeline() -> ProcessingPipeline:
     change_logsource_info = [
         # Add service to be SentinelOne for pretty much everything
         ProcessingItem(
-            identifier="s1_pq_logsource",
+            identifier="s1_logsource",
             transformation=ChangeLogsourceTransformation(
                 service="sentinelone"
             ),
@@ -373,29 +376,35 @@ def sentinelonepq_pipeline() -> ProcessingPipeline:
     unsupported_rule_types = [
         # Show error if unsupported option
         ProcessingItem(
-            identifier="s1_pq_fail_rule_not_supported",
+            identifier="s1_fail_rule_not_supported",
             rule_condition_linking=any,
-            transformation=RuleFailureTransformation("Rule type not yet supported by the SentinelOne PQ Sigma backend"),
+            transformation=RuleFailureTransformation("Rule type not yet supported by the SentinelOne Sigma backend"),
             rule_condition_negation=True,
             rule_conditions=[
-                RuleProcessingItemAppliedCondition("s1_pq_logsource")
+                RuleProcessingItemAppliedCondition("s1_logsource")
             ]
         )
     ]
 
     unsupported_field_name = [
         ProcessingItem(
-            identifier='s1_pq_fail_field_not_supported',
+            identifier='s1_fail_field_not_supported',
             transformation=InvalidFieldTransformation("This pipeline only supports the following fields:\n{" + 
-            '}, {'.join(sorted(set(sum([list(translation_dict[x].keys()) for x in translation_dict.keys()],[])))) + '}'),
+            '}, {'.join(sorted(set(
+                list(_flatten([[k,v] for t in translation_dict.keys() for k, v in
+                               translation_dict[t].items()])) + general_supported_fields
+            )))),
             field_name_conditions=[
-                ExcludeFieldCondition(fields=list(set(sum([list(translation_dict[x].keys()) for x in translation_dict.keys()],[]))) + general_supported_fields)
+                ExcludeFieldCondition(fields=list(set(
+                    list(_flatten([[k, v] for t in translation_dict.keys() for k, v in
+                                   translation_dict[t].items()])) + general_supported_fields
+                )))
             ]
         )
     ]
 
     return ProcessingPipeline(
-        name="SentinelOne PQ pipeline",
+        name="SentinelOne pipeline",
         priority=50,
         items = [
             *unsupported_field_name,
