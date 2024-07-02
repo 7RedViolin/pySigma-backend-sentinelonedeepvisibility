@@ -16,111 +16,125 @@ class InvalidFieldTransformation(DetectionItemFailureTransformation):
         self.message = f"Invalid SigmaDetectionItem field name encountered: {field_name}. " + self.message
         raise SigmaTransformationError(self.message)
 
-
-def _flatten(items, seqtypes=(list, tuple)):
-    """Private function to flatten lists for Field mapping errors"""
-    try:
-        for i, x in enumerate(items):
-            while isinstance(items[i], seqtypes):
-                items[i:i+1] = items[i]
-    except IndexError:
-        pass
-    return items
-
-def sentinelone_pipeline() -> ProcessingPipeline:
+def sentinelonepq_pipeline() -> ProcessingPipeline:
 
     general_supported_fields = [
-        'ObjectType',
-        'EventType'
+        'event.category',
+        'event.type'
     ]
 
     translation_dict = {
-        'process_creation':{                
-            "ProcessId":"TgtProcPID",
-            "Image":"TgtProcImagePath",
-            "Description":"TgtProcDisplayName", #Not sure whether this should be Description or Product???
-            "Product":"TgtProcDisplayName",
-            "Company":"TgtProcPublisher",
-            "CommandLine":"TgtProcCmdLine",
-            "CurrentDirectory":"TgtProcImagePath",
-            "User":"TgtProcUser",
-            "TerminalSessionId":"TgtProcSessionId",
-            "IntegrityLevel":"TgtProcIntegrityLevel",
-            "md5":"TgtProcMd5",
-            "sha1":"TgtProcSha1",
-            "sha256":"TgtProcSha256",
-            "ParentProcessId":"SrcProcPID",
-            "ParentImage":"SrcProcImagePath",
-            "ParentCommandLine":"SrcProcCmdLine",
+        'process_creation':{
+            "ProcessId":"tgt.process.pid",
+            "Image":"tgt.process.image.path",
+            "Description":"tgt.process.displayName", #Not sure whether this should be Description or Product???
+            "Publisher": "tgt.process.publisher",
+            "Product":"tgt.process.displayName",
+            "Company":"tgt.process.publisher",
+            "CommandLine":"tgt.process.cmdline",
+            "CurrentDirectory":"tgt.process.image.path",
+            "User":"tgt.process.user",
+            "TerminalSessionId":"tgt.process.sessionid",
+            "IntegrityLevel":"tgt.process.integrityLevel",
+            "md5":"tgt.process.image.md5",
+            "sha1":"tgt.process.image.sha1",
+            "sha256":"tgt.process.image.sha256",
+            "ParentProcessId":"src.process.pid",
+            "ParentImage":"src.process.image.path",
+            "ParentCommandLine":"src.process.cmdline",
+            "ParentProcessGuid":"src.process.parent.uid",
+            "ProcessGuid":"tgt.process.uid",
+            "LogonGuid":"tgt.process.eUserUid"
         },
         'file':{
-            "Image": "SrcProcImagePath",
-            "CommandLine":"SrcProcCmdLine",
-            "ParentImage":"SrcProcParentImagePath",
-            "ParentCommandLine":"SrcProcParentCmdline",
-            "TargetFilename":"TgtFilePath", 
-            "SourceFilename":"TgtFileOldPath",
-            "User":"SrcProcUser"
+            "Image": "src.process.image.path",
+            "CommandLine":"src.process.cmdline",
+            "ParentImage":"src.process.parent.image.path",
+            "ParentCommandLine":"src.process.parent.cmdline",
+            "TargetFilename":"tgt.file.path", 
+            "SourceFilename":"tgt.file.oldPath",
+            "User":"src.process.user",
+            "ProcessGuid":"src.process.uid",
+            "ProcessId":"src.process.pid"
         },
         'image_load':{
-            "ImageLoaded":"ModulePath",
-            "Image": "SrcProcImagePath",
-            "CommandLine":"SrcProcCmdLine",
-            "ParentImage":"SrcProcParentImagePath",
-            "ParentCommandLine":"SrcProcParentCmdline",
-            "sha1":"ModuleSha1",
-            "md5": "ModuleMd5"
+            "ImageLoaded":"module.path",
+            "Image": "src.process.image.path",
+            "CommandLine":"src.process.cmdline",
+            "ParentImage":"src.process.parent.image.path",
+            "ParentCommandLine":"src.process.parent.cmdline",
+            "Hashes":"module.sha1",
+            "md5": "module.md5",
+            "User": "src.process.user",
+            "ProcessGuid":"src.process.uid",
+            "ProcessId":"src.process.pid",
+            "Product": "src.process.displayName",
+            "Signed":"tgt.file.isSigned"
+    
+
         },
         'pipe_creation':{
-            "PipeName":"NamedPipeName",
-            "Image": "SrcProcImagePath",
-            "CommandLine":"SrcProcCmdLine",
-            "ParentImage":"SrcProcParentImagePath",
-            "ParentCommandLine":"SrcProcParentCmdline",
+            "PipeName":"namedPipe.name",
+            "Image": "src.process.image.path",
+            "CommandLine":"src.process.cmdline",
+            "ParentImage":"src.process.parent.image.path",
+            "ParentCommandLine":"src.process.parent.cmdline",
+            "ProcessId":"src.process.pid",
+            "ProcessGuid":"src.process.uid",
+            "User":"src.process.user"
+
+
         },
         'registry':{
-            "Image": "SrcProcImagePath",
-            "CommandLine":"SrcProcCmdLine",
-            "ParentImage":"SrcProcParentImagePath",
-            "ParentCommandLine":"SrcProcParentCmdline",
-            "TargetObject": "RegistryKeyPath",
-            "Details": "RegistryValue"
+            "Image": "src.process.image.path",
+            "CommandLine":"src.process.cmdline",
+            "ParentImage":"src.process.parent.image.path",
+            "ParentCommandLine":"src.process.parent.cmdline",
+            "TargetObject": "registry.keyPath",
+            "Details": "registry.value",
+            "ProcessId":"src.process.pid",
+            "ProcessGuid":"src.process.uid",
+            "NewName":"registry.value"
         },
         'dns':{
-            "Image": "SrcProcImagePath",
-            "CommandLine":"SrcProcCmdLine",
-            "ParentImage":"SrcProcParentImagePath",
-            "ParentCommandLine":"SrcProcParentCmdline",
-            "query": "DnsRequest",
-            "answer":"DnsResponse",
-            "QueryName": "DnsRequest",
-            "record_type":"DnsResponse"
+            "Image": "src.process.image.path",
+            "CommandLine":"src.process.cmdline",
+            "ParentImage":"src.process.parent.image.path",
+            "ParentCommandLine":"src.process.parent.cmdline",
+            "query": "event.dns.request",
+            "answer":"event.dns.response",
+            "QueryName": "event.dns.request",
+            "record_type":"event.dns.response"
         },
         'network':{
-            "Image": "SrcProcImagePath",
-            "CommandLine":"SrcProcCmdLine",
-            "ParentImage":"SrcProcParentImagePath",
-            "ParentCommandLine":"SrcProcParentCmdline",
-            "DestinationHostname":["Url", "DnsRequest"],
-            "DestinationPort":"DstPort",
-            "DestinationIp":"DstIP",
-            "User":"SrcProcUser",
-            "SourceIp":"SrcIP",
-            "SourcePort":"SrcPort",
+            "Image": "src.process.image.path",
+            "CommandLine":"src.process.cmdline",
+            "ParentImage":"src.process.parent.image.path",
+            "ParentCommandLine":"src.process.parent.cmdline",
+            "DestinationHostname":["url.address", "event.dns.request"],
+            "DestinationPort":"dst.port.number",
+            "DestinationIp":"dst.ip.address",
+            "User":"src.process.user",
+            "SourceIp":"src.ip.address",
+            "SourcePort":"src.port.number",
             "Protocol":"NetProtocolName",
-            "dst_ip":"DstIP",
-            "src_ip":"SrcIP",
-            "dst_port":"DstPort",
-            "src_port":"SrcPort"
+            "dst_ip":"dst.ip.address",
+            "src_ip":"src.ip.address",
+            "dst_port":"dst.port.number",
+            "src_port":"src.port.number"
         }
+        ##'security':{
+            #"EventID": "EventID",
+            #"Provider_Name":"ProviderName",           
+        ##}
     }
 
     os_filter = [
         # Add EndpointOS = Linux
         ProcessingItem(
-            identifier="s1_linux_product",
+            identifier="s1_pq_linux_product",
             transformation=AddConditionTransformation({
-                "EndpointOS": "linux"
+                "endpoint.os": "linux"
             }),
             rule_conditions=[
                 LogsourceCondition(product="linux")
@@ -128,9 +142,9 @@ def sentinelone_pipeline() -> ProcessingPipeline:
         ),
         # Add EndpointOS = Windows
         ProcessingItem(
-            identifier="s1_windows_product",
+            identifier="s1_pq_windows_product",
             transformation=AddConditionTransformation({
-                "EndpointOS": "windows"
+                "endpoint.os": "windows"
             }),
             rule_conditions=[
                 LogsourceCondition(product="windows")
@@ -138,9 +152,9 @@ def sentinelone_pipeline() -> ProcessingPipeline:
         ),
         # Add EndpointOS = OSX
         ProcessingItem(
-            identifier="s1_osx_product",
+            identifier="s1_pq_osx_product",
             transformation=AddConditionTransformation({
-                "EndpointOS":"osx"
+                "endpoint.os":"osx"
             }),
             rule_conditions=[
                 LogsourceCondition(product="macos")
@@ -151,9 +165,9 @@ def sentinelone_pipeline() -> ProcessingPipeline:
     object_event_type_filter = [
         # Add EventType = Process Creation
         ProcessingItem(
-            identifier="s1_process_creation_eventtype",
+            identifier="s1_pq_process_creation_eventtype",
             transformation=AddConditionTransformation({
-                "EventType": "Process Creation"
+                "event.type": "Process Creation"
             }),
             rule_conditions=[
                 LogsourceCondition(category="process_creation")
@@ -161,9 +175,9 @@ def sentinelone_pipeline() -> ProcessingPipeline:
         ),
         # Add ObjectType = "File"
         ProcessingItem(
-            identifier="s1_file_event_objecttype",
+            identifier="s1_pq_file_event_objecttype",
             transformation=AddConditionTransformation({
-                "ObjectType": "File"
+                "event.category": "file"
             }),
             rule_conditions=[
                 LogsourceCondition(category="file_event")
@@ -171,9 +185,9 @@ def sentinelone_pipeline() -> ProcessingPipeline:
         ),
         # Add EventType = "File Modification"
         ProcessingItem(
-            identifier="s1_file_change_eventtype",
+            identifier="s1_pq_file_change_eventtype",
             transformation=AddConditionTransformation({
-                "EventType": "File Modification"
+                "event.type": "File Modification"
             }),
             rule_conditions=[
                 LogsourceCondition(category="file_change")
@@ -181,9 +195,9 @@ def sentinelone_pipeline() -> ProcessingPipeline:
         ),
         # Add EventType = "File Rename"
         ProcessingItem(
-            identifier="s1_file_rename_eventtype",
+            identifier="s1_pq_file_rename_eventtype",
             transformation=AddConditionTransformation({
-                "EventType": "File Rename"
+                "event.type": "File Rename"
             }),
             rule_conditions=[
                 LogsourceCondition(category="file_rename")
@@ -191,9 +205,9 @@ def sentinelone_pipeline() -> ProcessingPipeline:
         ),
         # Add EventType = "File Delete"
         ProcessingItem(
-            identifier="s1_file_delete_eventtype",
+            identifier="s1_pq_file_delete_eventtype",
             transformation=AddConditionTransformation({
-                "EventType": "File Delete"
+                "event.type": "File Delete"
             }),
             rule_conditions=[
                 LogsourceCondition(category="file_delete")
@@ -201,9 +215,9 @@ def sentinelone_pipeline() -> ProcessingPipeline:
         ),
         # Add EventType = "Module Load"
         ProcessingItem(
-            identifier="s1_image_load_eventtype",
+            identifier="s1_pq_image_load_eventtype",
             transformation=AddConditionTransformation({
-                "EventType": "ModuleLoad"
+                "event.type": "ModuleLoad"
             }),
             rule_conditions=[
                 LogsourceCondition(category="image_load")
@@ -211,9 +225,9 @@ def sentinelone_pipeline() -> ProcessingPipeline:
         ),
         # Add EventType for Pipe Creation
         ProcessingItem(
-            identifier="s1_pipe_creation_eventtype",
+            identifier="s1_pq_pipe_creation_eventtype",
             transformation=AddConditionTransformation({
-                "EventType": "Named Pipe Creation"
+                "event.type": "Named Pipe Creation"
             }),
             rule_conditions=[
                 LogsourceCondition(category="pipe_creation")
@@ -221,9 +235,9 @@ def sentinelone_pipeline() -> ProcessingPipeline:
         ),
         # Add ObjectType for Registry Stuff
         ProcessingItem(
-            identifier="s1_registry_eventtype",
+            identifier="s1_pq_registry_eventtype",
             transformation=AddConditionTransformation({
-                "ObjectType": "Registry"
+                "event.category": "Registry"
             }),
             rule_condition_linking=any,
             rule_conditions=[
@@ -235,9 +249,9 @@ def sentinelone_pipeline() -> ProcessingPipeline:
         ),
         # Add ObjectType for DNS Stuff
         ProcessingItem(
-            identifier="s1_dns_objecttype",
+            identifier="s1_pq_dns_objecttype",
             transformation=AddConditionTransformation({
-                "ObjectType":"DNS"
+                "event.category":"DNS"
             }),
             rule_condition_linking=any,
             rule_conditions=[
@@ -247,9 +261,9 @@ def sentinelone_pipeline() -> ProcessingPipeline:
         ),
         # Add ObjectType for Network Stuff
         ProcessingItem(
-            identifier="s1_network_objecttype",
+            identifier="s1_pq_network_objecttype",
             transformation=AddConditionTransformation({
-                "ObjectType": ["DNS","Url","IP"]
+                "event.category": ["DNS","Url","IP"]
             }),
             rule_conditions=[
                 LogsourceCondition(category="network_connection")
@@ -260,7 +274,7 @@ def sentinelone_pipeline() -> ProcessingPipeline:
     field_mappings = [
         # Process Creation
         ProcessingItem(
-            identifier="s1_process_creation_fieldmapping",
+            identifier="s1_pq_process_creation_fieldmapping",
             transformation=FieldMappingTransformation(translation_dict['process_creation']),
             rule_conditions=[
                 LogsourceCondition(category="process_creation")
@@ -268,7 +282,7 @@ def sentinelone_pipeline() -> ProcessingPipeline:
         ),
         # File Stuff
         ProcessingItem(
-            identifier="s1_file_change_fieldmapping",
+            identifier="s1_pq_file_change_fieldmapping",
             transformation=FieldMappingTransformation(translation_dict['file']),
             rule_condition_linking=any,
             rule_conditions=[
@@ -280,7 +294,7 @@ def sentinelone_pipeline() -> ProcessingPipeline:
         ),
         # Module Load Stuff
         ProcessingItem(
-            identifier="s1_image_load_fieldmapping",
+            identifier="s1_pq_image_load_fieldmapping",
             transformation=FieldMappingTransformation(translation_dict['image_load']),
             rule_conditions=[
                 LogsourceCondition(category="image_load")
@@ -288,7 +302,7 @@ def sentinelone_pipeline() -> ProcessingPipeline:
         ),
         # Pipe Creation Stuff
         ProcessingItem(
-            identifier="s1_pipe_creation_fieldmapping",
+            identifier="s1_pq_pipe_creation_fieldmapping",
             transformation=FieldMappingTransformation(translation_dict['pipe_creation']),
             rule_conditions=[
                 LogsourceCondition(category="pipe_creation")
@@ -296,7 +310,7 @@ def sentinelone_pipeline() -> ProcessingPipeline:
         ),
         # Registry Stuff
         ProcessingItem(
-            identifier="s1_registry_fieldmapping",
+            identifier="s1_pq_registry_fieldmapping",
             transformation=FieldMappingTransformation(translation_dict['registry']),
             rule_condition_linking=any,
             rule_conditions=[
@@ -308,7 +322,7 @@ def sentinelone_pipeline() -> ProcessingPipeline:
         ),
         # DNS Stuff
         ProcessingItem(
-            identifier="s1_dns_fieldmapping",
+            identifier="s1_pq_dns_fieldmapping",
             transformation=FieldMappingTransformation(translation_dict['dns']),
             rule_condition_linking=any,
             rule_conditions=[
@@ -318,7 +332,7 @@ def sentinelone_pipeline() -> ProcessingPipeline:
         ),
         # Network Stuff
         ProcessingItem(
-            identifier="s1_network_fieldmapping",
+            identifier="s1_pq_network_fieldmapping",
             transformation=FieldMappingTransformation(translation_dict['network']),
             rule_condition_linking=any,
             rule_conditions=[
@@ -331,7 +345,7 @@ def sentinelone_pipeline() -> ProcessingPipeline:
     change_logsource_info = [
         # Add service to be SentinelOne for pretty much everything
         ProcessingItem(
-            identifier="s1_logsource",
+            identifier="s1_pq_logsource",
             transformation=ChangeLogsourceTransformation(
                 service="sentinelone"
             ),
@@ -359,35 +373,29 @@ def sentinelone_pipeline() -> ProcessingPipeline:
     unsupported_rule_types = [
         # Show error if unsupported option
         ProcessingItem(
-            identifier="s1_fail_rule_not_supported",
+            identifier="s1_pq_fail_rule_not_supported",
             rule_condition_linking=any,
-            transformation=RuleFailureTransformation("Rule type not yet supported by the SentinelOne Sigma backend"),
+            transformation=RuleFailureTransformation("Rule type not yet supported by the SentinelOne PQ Sigma backend"),
             rule_condition_negation=True,
             rule_conditions=[
-                RuleProcessingItemAppliedCondition("s1_logsource")
+                RuleProcessingItemAppliedCondition("s1_pq_logsource")
             ]
         )
     ]
 
     unsupported_field_name = [
         ProcessingItem(
-            identifier='s1_fail_field_not_supported',
+            identifier='s1_pq_fail_field_not_supported',
             transformation=InvalidFieldTransformation("This pipeline only supports the following fields:\n{" + 
-            '}, {'.join(sorted(set(
-                list(_flatten([[k,v] for t in translation_dict.keys() for k, v in
-                               translation_dict[t].items()])) + general_supported_fields
-            )))),
+            '}, {'.join(sorted(set(sum([list(translation_dict[x].keys()) for x in translation_dict.keys()],[])))) + '}'),
             field_name_conditions=[
-                ExcludeFieldCondition(fields=list(set(
-                    list(_flatten([[k, v] for t in translation_dict.keys() for k, v in
-                                   translation_dict[t].items()])) + general_supported_fields
-                )))
+                ExcludeFieldCondition(fields=list(set(sum([list(translation_dict[x].keys()) for x in translation_dict.keys()],[]))) + general_supported_fields)
             ]
         )
     ]
 
     return ProcessingPipeline(
-        name="SentinelOne pipeline",
+        name="SentinelOne PQ pipeline",
         priority=50,
         items = [
             *unsupported_field_name,
